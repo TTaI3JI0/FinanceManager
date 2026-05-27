@@ -3,6 +3,7 @@
 #include <limits>
 #include <string>
 #include "FinanceManager.hpp"
+#include "sqlite3.h"
 
 static void printMenu() {
     std::cout << "\n=== Finance Manager ===\n";
@@ -129,6 +130,8 @@ static void reportsFlow(FinanceManager &manager) {
 }
 
 int main() {
+    std::cout << "SQLite version: " << sqlite3_libversion() << "\n";
+
     FinanceManager manager;
 
     while (true) {
