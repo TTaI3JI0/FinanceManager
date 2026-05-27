@@ -3,4 +3,8 @@ project(FinanceManager)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(FinanceManager main.cpp)
+add_executable(FinanceManager
+        src/main.cpp
+        src/FinanceManager.cpp
+)
+include_directories(include)
