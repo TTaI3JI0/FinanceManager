@@ -5,18 +5,18 @@
 #include "FinanceManager.hpp"
 
 static void printMenu() {
-    std::cout << "\n=== Финансовый менеджер ===\n";
-    std::cout << "1) Показать все категории\n";
-    std::cout << "2) Добавить категорию\n";
-    std::cout << "3) Добавить транзакцию (заглушка ввода)\n";
-    std::cout << "4) Отчёты\n";
-    std::cout << "0) Выход\n";
-    std::cout << "Выбор: ";
+    std::cout << "\n=== Finance Manager ===\n";
+    std::cout << "1) List categories\n";
+    std::cout << "2) Add category\n";
+    std::cout << "3) Add transaction (input stub)\n";
+    std::cout << "4) Reports\n";
+    std::cout << "0) Exit\n";
+    std::cout << "Choice: ";
 }
 
 static void printCategories(const FinanceManager &manager) {
     const auto &cats = manager.getCategories();
-    std::cout << "\nКатегории (" << cats.size() << "):\n";
+    std::cout << "\nCategories (" << cats.size() << "):\n";
     for (const auto &c : cats) {
         std::cout << "- " << c.name << " [" << (c.isIncome ? "income" : "expense") << "]\n";
     }
@@ -26,14 +26,14 @@ static void addCategoryFlow(FinanceManager &manager) {
     std::string name;
     int isIncomeInt = 0;
 
-    std::cout << "Название категории: ";
+    std::cout << "Category name: ";
     std::getline(std::cin >> std::ws, name);
 
-    std::cout << "Это доход? (1 - да, 0 - нет): ";
+    std::cout << "Is income? (1 - yes, 0 - no): ";
     std::cin >> isIncomeInt;
 
     manager.addCategory(Category(name, isIncomeInt != 0));
-    std::cout << "Готово.\n";
+    std::cout << "Done.\n";
 }
 
 static void addTransactionFlow(FinanceManager &manager) {
@@ -46,34 +46,34 @@ static void addTransactionFlow(FinanceManager &manager) {
     std::cout << "ID (int): ";
     std::cin >> id;
 
-    std::cout << "Дата (YYYY-MM-DD): ";
+    std::cout << "Date (YYYY-MM-DD): ";
     std::cin >> date;
 
-    std::cout << "Сумма (double): ";
+    std::cout << "Amount (double): ";
     std::cin >> amount;
 
-    std::cout << "Категория (точное имя): ";
+    std::cout << "Category (exact name): ";
     std::getline(std::cin >> std::ws, category);
 
-    std::cout << "Описание: ";
+    std::cout << "Description: ";
     std::getline(std::cin, description);
 
     if (!manager.categoryExists(category)) {
-        std::cout << "Ошибка: такой категории нет. Сначала добавьте категорию.\n";
+        std::cout << "Error: category does not exist. Please add it first.\n";
         return;
     }
 
     manager.addTransaction(Transaction(id, date, amount, category, description));
-    std::cout << "Транзакция добавлена.\n";
+    std::cout << "Transaction added.\n";
 }
 
 static void printReportsMenu() {
-    std::cout << "\n--- Отчёты ---\n";
-    std::cout << "1) Общий баланс\n";
-    std::cout << "2) Расходы по категориям\n";
-    std::cout << "3) Баланс за период\n";
-    std::cout << "0) Назад\n";
-    std::cout << "Выбор: ";
+    std::cout << "\n--- Reports ---\n";
+    std::cout << "1) Total balance\n";
+    std::cout << "2) Expenses by category\n";
+    std::cout << "3) Balance for period\n";
+    std::cout << "0) Back\n";
+    std::cout << "Choice: ";
 }
 
 static void reportsFlow(FinanceManager &manager) {
@@ -91,17 +91,17 @@ static void reportsFlow(FinanceManager &manager) {
             case 1: {
                 const double balance = manager.getTotalBalance();
                 std::cout << std::fixed << std::setprecision(2);
-                std::cout << "Общий баланс: " << balance << "\n";
+                std::cout << "Total balance: " << balance << "\n";
                 break;
             }
             case 2: {
                 auto expenses = manager.getExpensesByCategory();
                 std::cout << std::fixed << std::setprecision(2);
                 if (expenses.empty()) {
-                    std::cout << "Расходов пока нет.\n";
+                    std::cout << "No expenses yet.\n";
                     break;
                 }
-                std::cout << "Расходы по категориям:\n";
+                std::cout << "Expenses by category:\n";
                 for (const auto &kv : expenses) {
                     std::cout << "- " << kv.first << ": " << kv.second << "\n";
                 }
@@ -109,20 +109,20 @@ static void reportsFlow(FinanceManager &manager) {
             }
             case 3: {
                 std::string startDate, endDate;
-                std::cout << "Начальная дата (YYYY-MM-DD): ";
+                std::cout << "Start date (YYYY-MM-DD): ";
                 std::cin >> startDate;
-                std::cout << "Конечная дата (YYYY-MM-DD): ";
+                std::cout << "End date (YYYY-MM-DD): ";
                 std::cin >> endDate;
 
                 const double balance = manager.getBalanceForPeriod(startDate, endDate);
                 std::cout << std::fixed << std::setprecision(2);
-                std::cout << "Баланс за период [" << startDate << " .. " << endDate << "]: " << balance << "\n";
+                std::cout << "Balance for period [" << startDate << " .. " << endDate << "]: " << balance << "\n";
                 break;
             }
             case 0:
                 return;
             default:
-                std::cout << "Неизвестный пункт.\n";
+                std::cout << "Unknown option.\n";
                 break;
         }
     }
@@ -157,7 +157,7 @@ int main() {
             case 0:
                 return 0;
             default:
-                std::cout << "Неизвестный пункт меню.\n";
+                std::cout << "Unknown menu option.\n";
                 break;
         }
     }
