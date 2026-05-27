@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <limits>
 #include <string>
 #include "FinanceManager.hpp"
@@ -8,6 +9,7 @@ static void printMenu() {
     std::cout << "1) Показать все категории\n";
     std::cout << "2) Добавить категорию\n";
     std::cout << "3) Добавить транзакцию (заглушка ввода)\n";
+    std::cout << "4) Отчёты\n";
     std::cout << "0) Выход\n";
     std::cout << "Выбор: ";
 }
@@ -65,6 +67,67 @@ static void addTransactionFlow(FinanceManager &manager) {
     std::cout << "Транзакция добавлена.\n";
 }
 
+static void printReportsMenu() {
+    std::cout << "\n--- Отчёты ---\n";
+    std::cout << "1) Общий баланс\n";
+    std::cout << "2) Расходы по категориям\n";
+    std::cout << "3) Баланс за период\n";
+    std::cout << "0) Назад\n";
+    std::cout << "Выбор: ";
+}
+
+static void reportsFlow(FinanceManager &manager) {
+    while (true) {
+        printReportsMenu();
+
+        int choice = -1;
+        if (!(std::cin >> choice)) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            continue;
+        }
+
+        switch (choice) {
+            case 1: {
+                const double balance = manager.getTotalBalance();
+                std::cout << std::fixed << std::setprecision(2);
+                std::cout << "Общий баланс: " << balance << "\n";
+                break;
+            }
+            case 2: {
+                auto expenses = manager.getExpensesByCategory();
+                std::cout << std::fixed << std::setprecision(2);
+                if (expenses.empty()) {
+                    std::cout << "Расходов пока нет.\n";
+                    break;
+                }
+                std::cout << "Расходы по категориям:\n";
+                for (const auto &kv : expenses) {
+                    std::cout << "- " << kv.first << ": " << kv.second << "\n";
+                }
+                break;
+            }
+            case 3: {
+                std::string startDate, endDate;
+                std::cout << "Начальная дата (YYYY-MM-DD): ";
+                std::cin >> startDate;
+                std::cout << "Конечная дата (YYYY-MM-DD): ";
+                std::cin >> endDate;
+
+                const double balance = manager.getBalanceForPeriod(startDate, endDate);
+                std::cout << std::fixed << std::setprecision(2);
+                std::cout << "Баланс за период [" << startDate << " .. " << endDate << "]: " << balance << "\n";
+                break;
+            }
+            case 0:
+                return;
+            default:
+                std::cout << "Неизвестный пункт.\n";
+                break;
+        }
+    }
+}
+
 int main() {
     FinanceManager manager;
 
@@ -87,6 +150,9 @@ int main() {
                 break;
             case 3:
                 addTransactionFlow(manager);
+                break;
+            case 4:
+                reportsFlow(manager);
                 break;
             case 0:
                 return 0;

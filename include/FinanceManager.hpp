@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
 #include "Category.hpp"
@@ -17,6 +18,10 @@ public:
     void printAllCategories() const;
     bool categoryExists(const std::string &name) const;
     const std::vector<Category> &getCategories() const;
+
+    double getTotalBalance() const;
+    std::map<std::string, double> getExpensesByCategory() const;
+    double getBalanceForPeriod(const std::string &startDate, const std::string &endDate) const;
 
 private:
     std::vector<Category> categories_;
