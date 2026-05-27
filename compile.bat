@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-set SRC=src\main.cpp src\FinanceManager.cpp libs\sqlite\sqlite3.c
+set SRC=src\main.cpp src\FinanceManager.cpp src\DatabaseManager.cpp libs\sqlite\sqlite3.c
 set OUT=FinanceManager.exe
 
 echo Compiling %OUT% ...
