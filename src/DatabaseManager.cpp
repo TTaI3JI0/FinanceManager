@@ -19,7 +19,6 @@ bool DatabaseManager::open() {
         return false;
     }
 
-    // Ensure foreign keys are enforced.
     return execute("PRAGMA foreign_keys = ON;");
 }
 
@@ -27,6 +26,20 @@ void DatabaseManager::close() {
     if (!db_) return;
     sqlite3_close(db_);
     db_ = nullptr;
+}
+
+bool DatabaseManager::bindValue(sqlite3_stmt *stmt, int index, const SqlBind &bind) {
+    switch (bind.type) {
+        case SqlBind::Type::Text:
+            return sqlite3_bind_text(stmt, index, bind.text.c_str(), -1, SQLITE_TRANSIENT) == SQLITE_OK;
+        case SqlBind::Type::Int64:
+            return sqlite3_bind_int64(stmt, index, bind.i64) == SQLITE_OK;
+        case SqlBind::Type::Double:
+            return sqlite3_bind_double(stmt, index, bind.d) == SQLITE_OK;
+        case SqlBind::Type::Null:
+            return sqlite3_bind_null(stmt, index) == SQLITE_OK;
+    }
+    return false;
 }
 
 bool DatabaseManager::execute(const std::string &sql) {
@@ -40,6 +53,83 @@ bool DatabaseManager::execute(const std::string &sql) {
         return false;
     }
     return true;
+}
+
+bool DatabaseManager::executePrepared(const std::string &sql, const std::vector<SqlBind> &binds) {
+    if (!db_ && !open()) return false;
+
+    sqlite3_stmt *stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cerr << "SQLite prepare failed: " << sqlite3_errmsg(db_) << "\n";
+        return false;
+    }
+
+    for (size_t i = 0; i < binds.size(); ++i) {
+        if (!bindValue(stmt, static_cast<int>(i + 1), binds[i])) {
+            sqlite3_finalize(stmt);
+            return false;
+        }
+    }
+
+    const int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    if (rc != SQLITE_DONE) {
+        std::cerr << "SQLite step failed: " << sqlite3_errmsg(db_) << "\n";
+        return false;
+    }
+    return true;
+}
+
+bool DatabaseManager::queryPrepared(const std::string &sql,
+                                    const std::vector<SqlBind> &binds,
+                                    const RowCallback &onRow) const {
+    if (!db_) return false;
+
+    sqlite3_stmt *stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cerr << "SQLite prepare failed: " << sqlite3_errmsg(db_) << "\n";
+        return false;
+    }
+
+    for (size_t i = 0; i < binds.size(); ++i) {
+        if (!bindValue(stmt, static_cast<int>(i + 1), binds[i])) {
+            sqlite3_finalize(stmt);
+            return false;
+        }
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        onRow(stmt);
+    }
+
+    sqlite3_finalize(stmt);
+    return true;
+}
+
+long long DatabaseManager::queryInt64(const std::string &sql, const std::string &textParam) const {
+    if (!db_) return 0;
+
+    sqlite3_stmt *stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        return 0;
+    }
+
+    if (!textParam.empty()) {
+        sqlite3_bind_text(stmt, 1, textParam.c_str(), -1, SQLITE_TRANSIENT);
+    }
+
+    long long result = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        result = sqlite3_column_int64(stmt, 0);
+    }
+
+    sqlite3_finalize(stmt);
+    return result;
+}
+
+bool DatabaseManager::queryExists(const std::string &sql, const std::string &textParam) const {
+    return queryInt64(sql, textParam) > 0;
 }
 
 bool DatabaseManager::createTables() {
@@ -62,7 +152,6 @@ bool DatabaseManager::createTables() {
 }
 
 bool DatabaseManager::insertInitialCategories() {
-    // Inserts defaults if they don't exist.
     const char *sql =
         "INSERT OR IGNORE INTO categories(name, is_income) VALUES"
         "('Salary', 1),"
@@ -89,4 +178,3 @@ long long DatabaseManager::getLastInsertId() const {
     if (!db_) return 0;
     return static_cast<long long>(sqlite3_last_insert_rowid(db_));
 }
-

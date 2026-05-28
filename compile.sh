@@ -2,7 +2,7 @@
 
 set -e
 
-SRC="src/main.cpp src/FinanceManager.cpp src/DatabaseManager.cpp libs/sqlite/sqlite3.c"
+SRC="src/main.cpp src/FinanceManager.cpp src/DatabaseManager.cpp src/Utils.cpp libs/sqlite/sqlite3.c"
 OUT="FinanceManager"
 
 echo "Compiling $OUT ..."

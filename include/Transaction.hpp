@@ -4,7 +4,7 @@
 
 struct Transaction {
     int id;
-    std::string date;        // format: YYYY-MM-DD
+    std::string date;        // stored as YYYY-MM-DD in database
     double amount;
     std::string category;
     std::string description;
