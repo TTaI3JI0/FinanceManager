@@ -25,6 +25,7 @@ public:
     double getTotalBalance() const;
     std::map<std::string, double> getExpensesByCategory() const;
     double getBalanceForPeriod(const std::string &startDate, const std::string &endDate) const;
+    std::map<std::string, double> getMonthlyExpenses() const;
 
     std::vector<Transaction> findTransactionsByDescription(const std::string &substr) const;
     std::vector<Transaction> findTransactionsByCategory(const std::string &categoryName) const;

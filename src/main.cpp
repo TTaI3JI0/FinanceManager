@@ -174,6 +174,7 @@ static void printReportsMenu() {
     std::cout << "1) Total balance\n";
     std::cout << "2) Expenses by category\n";
     std::cout << "3) Balance for period\n";
+    std::cout << "4) Monthly expenses\n";
     std::cout << "0) Back\n";
     std::cout << "Choice: ";
 }
@@ -219,6 +220,19 @@ static void reportsFlow(FinanceManager &manager) {
                 const double balance = manager.getBalanceForPeriod(startDate, endDate);
                 std::cout << std::fixed << std::setprecision(2);
                 std::cout << "Balance for period [" << startDate << " .. " << endDate << "]: " << balance << "\n";
+                break;
+            }
+            case 4: {
+                auto monthly = manager.getMonthlyExpenses();
+                std::cout << std::fixed << std::setprecision(2);
+                if (monthly.empty()) {
+                    std::cout << "No monthly expenses yet.\n";
+                    break;
+                }
+                std::cout << "Monthly expenses:\n";
+                for (const auto &kv : monthly) {
+                    std::cout << "- " << kv.first << ": " << kv.second << "\n";
+                }
                 break;
             }
             case 0:

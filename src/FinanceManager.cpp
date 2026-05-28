@@ -168,12 +168,14 @@ double FinanceManager::getTotalBalance() const {
     double balance = 0.0;
 
     db_.queryPrepared(
-        "SELECT COALESCE(SUM(CASE WHEN c.is_income = 1 THEN t.amount ELSE -t.amount END), 0) "
+        "SELECT SUM(CASE WHEN c.is_income = 1 THEN t.amount ELSE -t.amount END) AS balance "
         "FROM transactions t "
         "JOIN categories c ON t.category_id = c.id;",
         {},
         [&](sqlite3_stmt *row) {
-            balance = sqlite3_column_double(row, 0);
+            if (sqlite3_column_type(row, 0) != SQLITE_NULL) {
+                balance = sqlite3_column_double(row, 0);
+            }
         });
 
     return balance;
@@ -183,12 +185,11 @@ std::map<std::string, double> FinanceManager::getExpensesByCategory() const {
     std::map<std::string, double> result;
 
     db_.queryPrepared(
-        "SELECT c.name, SUM(t.amount) "
+        "SELECT c.name, SUM(t.amount) AS total "
         "FROM transactions t "
         "JOIN categories c ON t.category_id = c.id "
         "WHERE c.is_income = 0 "
-        "GROUP BY c.name "
-        "ORDER BY c.name;",
+        "GROUP BY c.name;",
         {},
         [&](sqlite3_stmt *stmt) {
             const char *name = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
@@ -205,14 +206,38 @@ double FinanceManager::getBalanceForPeriod(const std::string &startDate, const s
     double balance = 0.0;
 
     db_.queryPrepared(
-        "SELECT COALESCE(SUM(CASE WHEN c.is_income = 1 THEN t.amount ELSE -t.amount END), 0) "
+        "SELECT SUM(CASE WHEN c.is_income = 1 THEN t.amount ELSE -t.amount END) AS balance "
         "FROM transactions t "
         "JOIN categories c ON t.category_id = c.id "
-        "WHERE t.date >= ? AND t.date <= ?;",
+        "WHERE t.date BETWEEN ? AND ?;",
         {SqlBind::textVal(startDate), SqlBind::textVal(endDate)},
         [&](sqlite3_stmt *row) {
-            balance = sqlite3_column_double(row, 0);
+            if (sqlite3_column_type(row, 0) != SQLITE_NULL) {
+                balance = sqlite3_column_double(row, 0);
+            }
         });
 
     return balance;
+}
+
+std::map<std::string, double> FinanceManager::getMonthlyExpenses() const {
+    std::map<std::string, double> result;
+
+    db_.queryPrepared(
+        "SELECT strftime('%Y-%m', t.date) AS month, SUM(t.amount) AS total "
+        "FROM transactions t "
+        "JOIN categories c ON t.category_id = c.id "
+        "WHERE c.is_income = 0 "
+        "GROUP BY month "
+        "ORDER BY month;",
+        {},
+        [&](sqlite3_stmt *stmt) {
+            const char *month = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
+            const double total = sqlite3_column_double(stmt, 1);
+            if (month) {
+                result[month] = total;
+            }
+        });
+
+    return result;
 }
