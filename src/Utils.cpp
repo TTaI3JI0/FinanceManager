@@ -2,9 +2,9 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <iomanip>
 #include <iostream>
-
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -35,29 +35,57 @@ int daysInMonth(int year, int month) {
     return days[month];
 }
 
-} // namespace
-
-bool isValidDate(const std::string &date) {
-    if (date.size() != 10) return false;
-    if (date[4] != '-' || date[7] != '-') return false;
-
-    for (int i = 0; i < 10; ++i) {
-        if (i == 4 || i == 7) continue;
-        if (!std::isdigit(static_cast<unsigned char>(date[i]))) return false;
-    }
-
+bool parseDateParts(const std::string &date, int &day, int &month, int &year) {
     try {
-        const int year = std::stoi(date.substr(0, 4));
-        const int month = std::stoi(date.substr(5, 2));
-        const int day = std::stoi(date.substr(8, 2));
-
-        if (year < 1 || year > 9999) return false;
-        if (month < 1 || month > 12) return false;
-        if (day < 1 || day > daysInMonth(year, month)) return false;
+        day = std::stoi(date.substr(0, 2));
+        month = std::stoi(date.substr(3, 2));
+        year = std::stoi(date.substr(6, 4));
         return true;
     } catch (...) {
         return false;
     }
+}
+
+} // namespace
+
+bool isValidDate(const std::string &date) {
+    if (date.size() != 10) return false;
+    if (date[2] != '.' || date[5] != '.') return false;
+
+    for (int i = 0; i < 10; ++i) {
+        if (i == 2 || i == 5) continue;
+        if (!std::isdigit(static_cast<unsigned char>(date[i]))) return false;
+    }
+
+    int day = 0;
+    int month = 0;
+    int year = 0;
+    if (!parseDateParts(date, day, month, year)) return false;
+
+    if (year < 1 || year > 9999) return false;
+    if (month < 1 || month > 12) return false;
+    if (day < 1 || day > daysInMonth(year, month)) return false;
+    return true;
+}
+
+std::string dateInputToIso(const std::string &date) {
+    int day = 0;
+    int month = 0;
+    int year = 0;
+    if (!parseDateParts(date, day, month, year)) {
+        return "";
+    }
+
+    char buffer[11];
+    std::snprintf(buffer, sizeof(buffer), "%04d-%02d-%02d", year, month, day);
+    return buffer;
+}
+
+std::string dateIsoToDisplay(const std::string &isoDate) {
+    if (isoDate.size() != 10 || isoDate[4] != '-' || isoDate[7] != '-') {
+        return isoDate;
+    }
+    return isoDate.substr(8, 2) + "." + isoDate.substr(5, 2) + "." + isoDate.substr(0, 4);
 }
 
 std::string readValidDate(const std::string &prompt) {
@@ -67,10 +95,10 @@ std::string readValidDate(const std::string &prompt) {
         std::cin >> date;
 
         if (isValidDate(date)) {
-            return date;
+            return dateInputToIso(date);
         }
 
-        printError("Invalid date. Use format YYYY-MM-DD.");
+        printError("Invalid date. Use format DD.MM.YYYY.");
     }
 }
 
@@ -85,10 +113,10 @@ std::string readOptionalValidDate(const std::string &prompt) {
         }
 
         if (isValidDate(date)) {
-            return date;
+            return dateInputToIso(date);
         }
 
-        printError("Invalid date. Use format YYYY-MM-DD or leave empty.");
+        printError("Invalid date. Use format DD.MM.YYYY or leave empty.");
     }
 }
 

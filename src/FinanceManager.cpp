@@ -2,6 +2,7 @@
 
 #include <iomanip>
 #include <iostream>
+#include "Utils.hpp"
 #include "sqlite3.h"
 
 FinanceManager::FinanceManager(DatabaseManager &db) : db_(db) {}
@@ -146,7 +147,7 @@ void FinanceManager::printAllTransactions() {
     std::cout << "\nTransactions (" << transactions.size() << "):\n";
     for (const auto &t : transactions) {
         std::cout << "#" << t.id
-                  << " | " << t.date
+                  << " | " << dateIsoToDisplay(t.date)
                   << " | " << t.amount
                   << " | " << t.category
                   << " | " << t.description

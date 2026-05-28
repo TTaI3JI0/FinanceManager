@@ -40,7 +40,7 @@ static void addCategoryFlow(FinanceManager &manager) {
 }
 
 static void addTransactionFlow(FinanceManager &manager) {
-    const std::string date = readValidDate("Date (YYYY-MM-DD): ");
+    const std::string date = readValidDate("Date (DD.MM.YYYY): ");
 
     double amount = 0.0;
     std::cout << "Amount (double): ";
@@ -71,7 +71,7 @@ static void editTransactionFlow(FinanceManager &manager) {
     std::cout << "Transaction ID to edit: ";
     std::cin >> id;
 
-    const std::string newDate = readOptionalValidDate("New date (YYYY-MM-DD, empty = keep): ");
+    const std::string newDate = readOptionalValidDate("New date (DD.MM.YYYY, empty = keep): ");
 
     std::string amountInput;
     std::cout << "New amount (empty = keep): ";
@@ -131,7 +131,7 @@ static void printTransactions(const std::vector<Transaction> &transactions, cons
               << " (" << transactions.size() << "):\n";
     for (const auto &t : transactions) {
         std::cout << Ansi::Blue << "#" << t.id << Ansi::Reset
-                  << " | " << t.date
+                  << " | " << dateIsoToDisplay(t.date)
                   << " | " << Ansi::Yellow << t.amount << Ansi::Reset
                   << " | " << t.category
                   << " | " << t.description
@@ -180,8 +180,8 @@ static void searchFlow(FinanceManager &manager) {
                 break;
             }
             case 3: {
-                const std::string fromDate = readValidDate("From date (YYYY-MM-DD): ");
-                const std::string toDate = readValidDate("To date (YYYY-MM-DD): ");
+                const std::string fromDate = readValidDate("From date (DD.MM.YYYY): ");
+                const std::string toDate = readValidDate("To date (DD.MM.YYYY): ");
 
                 if (fromDate > toDate) {
                     printError("From date must be <= to date.");
@@ -263,8 +263,8 @@ static void reportsFlow(FinanceManager &manager) {
                 break;
             }
             case 3: {
-                const std::string startDate = readValidDate("Start date (YYYY-MM-DD): ");
-                const std::string endDate = readValidDate("End date (YYYY-MM-DD): ");
+                const std::string startDate = readValidDate("Start date (DD.MM.YYYY): ");
+                const std::string endDate = readValidDate("End date (DD.MM.YYYY): ");
 
                 if (startDate > endDate) {
                     printError("Start date must be <= end date.");
@@ -274,8 +274,9 @@ static void reportsFlow(FinanceManager &manager) {
                 const double balance = manager.getBalanceForPeriod(startDate, endDate);
                 std::cout << std::fixed << std::setprecision(2);
                 std::cout << Ansi::Green
-                          << "Balance for period [" << startDate << " .. " << endDate << "]: "
-                          << balance << Ansi::Reset << "\n";
+                          << "Balance for period ["
+                          << dateIsoToDisplay(startDate) << " .. " << dateIsoToDisplay(endDate)
+                          << "]: " << balance << Ansi::Reset << "\n";
                 break;
             }
             case 4: {
