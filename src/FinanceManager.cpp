@@ -1,95 +1,171 @@
 #include "FinanceManager.hpp"
 
-// Простой регистр-независимый compare здесь не нужен; оставляем точное совпадение имён категорий.
+#include <iomanip>
+#include <iostream>
+#include "sqlite3.h"
 
-static const Category* findCategory(const std::vector<Category> &categories, const std::string &name) {
-    for (const auto &c : categories) {
-        if (c.name == name) return &c;
+FinanceManager::FinanceManager(DatabaseManager &db) : db_(db) {}
+
+bool FinanceManager::addTransaction(const std::string &date,
+                                    double amount,
+                                    const std::string &categoryName,
+                                    const std::string &description) {
+    const long long categoryId = db_.queryInt64(
+        "SELECT id FROM categories WHERE name = ?;",
+        categoryName);
+
+    if (categoryId <= 0) {
+        return false;
     }
-    return nullptr;
+
+    return db_.executePrepared(
+        "INSERT INTO transactions(date, amount, category_id, description) VALUES(?, ?, ?, ?);",
+        {
+            SqlBind::textVal(date),
+            SqlBind::doubleVal(amount),
+            SqlBind::int64Val(categoryId),
+            SqlBind::textVal(description),
+        });
 }
 
-FinanceManager::FinanceManager() {
-    // Предопределённые категории (можно расширить позже)
-    categories_.push_back(Category("Salary", true));
-    categories_.push_back(Category("Gift", true));
-    categories_.push_back(Category("Other Income", true));
-
-    categories_.push_back(Category("Food", false));
-    categories_.push_back(Category("Transport", false));
-    categories_.push_back(Category("Bills", false));
-    categories_.push_back(Category("Entertainment", false));
-    categories_.push_back(Category("Health", false));
-    categories_.push_back(Category("Other Expense", false));
+bool FinanceManager::removeTransaction(int id) {
+    return db_.executePrepared(
+        "DELETE FROM transactions WHERE id = ?;",
+        {SqlBind::int64Val(id)});
 }
 
-void FinanceManager::addTransaction(const Transaction &transaction) {
-    if (!categoryExists(transaction.category)) {
-        // Категория должна быть заранее создана
+std::vector<Transaction> FinanceManager::getAllTransactions() {
+    std::vector<Transaction> transactions;
+
+    db_.queryPrepared(
+        "SELECT t.id, t.date, t.amount, c.name AS category_name, t.description "
+        "FROM transactions t "
+        "JOIN categories c ON t.category_id = c.id "
+        "ORDER BY t.id;",
+        {},
+        [&](sqlite3_stmt *stmt) {
+            const int id = static_cast<int>(sqlite3_column_int(stmt, 0));
+            const char *date = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1));
+            const double amount = sqlite3_column_double(stmt, 2);
+            const char *categoryName = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 3));
+            const char *description = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 4));
+
+            transactions.emplace_back(
+                id,
+                date ? date : "",
+                amount,
+                categoryName ? categoryName : "",
+                description ? description : "");
+        });
+
+    return transactions;
+}
+
+void FinanceManager::printAllTransactions() {
+    const auto transactions = getAllTransactions();
+
+    if (transactions.empty()) {
+        std::cout << "No transactions yet.\n";
         return;
     }
-    transactions_.push_back(transaction);
+
+    std::cout << std::fixed << std::setprecision(2);
+    std::cout << "\nTransactions (" << transactions.size() << "):\n";
+    for (const auto &t : transactions) {
+        std::cout << "#" << t.id
+                  << " | " << t.date
+                  << " | " << t.amount
+                  << " | " << t.category
+                  << " | " << t.description
+                  << "\n";
+    }
 }
 
-const std::vector<Transaction> &FinanceManager::getTransactions() const {
-    return transactions_;
+bool FinanceManager::addCategory(const std::string &name, bool isIncome) {
+    if (name.empty() || categoryExists(name)) {
+        return false;
+    }
+
+    return db_.executePrepared(
+        "INSERT INTO categories(name, is_income) VALUES(?, ?);",
+        {
+            SqlBind::textVal(name),
+            SqlBind::int64Val(isIncome ? 1 : 0),
+        });
 }
 
-void FinanceManager::printSummary() const {
-    // Заглушка: реализация будет добавлена позже
-}
+void FinanceManager::printAllCategories() {
+    std::cout << "\nCategories:\n";
 
-void FinanceManager::addCategory(const Category &category) {
-    if (category.name.empty()) return;
-    if (categoryExists(category.name)) return;
-    categories_.push_back(category);
-}
+    db_.queryPrepared(
+        "SELECT id, name, is_income FROM categories ORDER BY id;",
+        {},
+        [](sqlite3_stmt *stmt) {
+            const int id = sqlite3_column_int(stmt, 0);
+            const char *name = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1));
+            const bool isIncome = sqlite3_column_int(stmt, 2) != 0;
 
-void FinanceManager::printAllCategories() const {
-    // Заглушка: печать будет реализована в следующем шаге (пока доступна через main)
+            std::cout << "#" << id
+                      << " - " << (name ? name : "")
+                      << " [" << (isIncome ? "income" : "expense") << "]\n";
+        });
 }
 
 bool FinanceManager::categoryExists(const std::string &name) const {
-    for (const auto &c : categories_) {
-        if (c.name == name) return true;
-    }
-    return false;
-}
-
-const std::vector<Category> &FinanceManager::getCategories() const {
-    return categories_;
+    return db_.queryExists(
+        "SELECT 1 FROM categories WHERE name = ? LIMIT 1;",
+        name);
 }
 
 double FinanceManager::getTotalBalance() const {
     double balance = 0.0;
-    for (const auto &t : transactions_) {
-        const auto *cat = findCategory(categories_, t.category);
-        if (!cat) continue;
-        balance += (cat->isIncome ? t.amount : -t.amount);
-    }
+
+    db_.queryPrepared(
+        "SELECT COALESCE(SUM(CASE WHEN c.is_income = 1 THEN t.amount ELSE -t.amount END), 0) "
+        "FROM transactions t "
+        "JOIN categories c ON t.category_id = c.id;",
+        {},
+        [&](sqlite3_stmt *row) {
+            balance = sqlite3_column_double(row, 0);
+        });
+
     return balance;
 }
 
 std::map<std::string, double> FinanceManager::getExpensesByCategory() const {
     std::map<std::string, double> result;
-    for (const auto &t : transactions_) {
-        const auto *cat = findCategory(categories_, t.category);
-        if (!cat) continue;
-        if (cat->isIncome) continue;
-        result[t.category] += t.amount;
-    }
+
+    db_.queryPrepared(
+        "SELECT c.name, SUM(t.amount) "
+        "FROM transactions t "
+        "JOIN categories c ON t.category_id = c.id "
+        "WHERE c.is_income = 0 "
+        "GROUP BY c.name "
+        "ORDER BY c.name;",
+        {},
+        [&](sqlite3_stmt *stmt) {
+            const char *name = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
+            const double total = sqlite3_column_double(stmt, 1);
+            if (name) {
+                result[name] = total;
+            }
+        });
+
     return result;
 }
 
 double FinanceManager::getBalanceForPeriod(const std::string &startDate, const std::string &endDate) const {
-    // Так как формат YYYY-MM-DD, лексикографическое сравнение корректно для диапазона дат.
     double balance = 0.0;
-    for (const auto &t : transactions_) {
-        if (t.date < startDate || t.date > endDate) continue;
-        const auto *cat = findCategory(categories_, t.category);
-        if (!cat) continue;
-        balance += (cat->isIncome ? t.amount : -t.amount);
-    }
+
+    db_.queryPrepared(
+        "SELECT COALESCE(SUM(CASE WHEN c.is_income = 1 THEN t.amount ELSE -t.amount END), 0) "
+        "FROM transactions t "
+        "JOIN categories c ON t.category_id = c.id "
+        "WHERE t.date >= ? AND t.date <= ?;",
+        {SqlBind::textVal(startDate), SqlBind::textVal(endDate)},
+        [&](sqlite3_stmt *row) {
+            balance = sqlite3_column_double(row, 0);
+        });
+
     return balance;
 }
-

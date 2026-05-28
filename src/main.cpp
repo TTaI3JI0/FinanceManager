@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <limits>
 #include <string>
+#include "DatabaseManager.hpp"
 #include "FinanceManager.hpp"
 #include "sqlite3.h"
 
@@ -9,18 +10,12 @@ static void printMenu() {
     std::cout << "\n=== Finance Manager ===\n";
     std::cout << "1) List categories\n";
     std::cout << "2) Add category\n";
-    std::cout << "3) Add transaction (input stub)\n";
-    std::cout << "4) Reports\n";
+    std::cout << "3) Add transaction\n";
+    std::cout << "4) List transactions\n";
+    std::cout << "5) Remove transaction\n";
+    std::cout << "6) Reports\n";
     std::cout << "0) Exit\n";
     std::cout << "Choice: ";
-}
-
-static void printCategories(const FinanceManager &manager) {
-    const auto &cats = manager.getCategories();
-    std::cout << "\nCategories (" << cats.size() << "):\n";
-    for (const auto &c : cats) {
-        std::cout << "- " << c.name << " [" << (c.isIncome ? "income" : "expense") << "]\n";
-    }
 }
 
 static void addCategoryFlow(FinanceManager &manager) {
@@ -33,19 +28,18 @@ static void addCategoryFlow(FinanceManager &manager) {
     std::cout << "Is income? (1 - yes, 0 - no): ";
     std::cin >> isIncomeInt;
 
-    manager.addCategory(Category(name, isIncomeInt != 0));
-    std::cout << "Done.\n";
+    if (manager.addCategory(name, isIncomeInt != 0)) {
+        std::cout << "Category added.\n";
+    } else {
+        std::cout << "Failed to add category (empty name or already exists).\n";
+    }
 }
 
 static void addTransactionFlow(FinanceManager &manager) {
-    int id = 0;
     std::string date;
     double amount = 0.0;
     std::string category;
     std::string description;
-
-    std::cout << "ID (int): ";
-    std::cin >> id;
 
     std::cout << "Date (YYYY-MM-DD): ";
     std::cin >> date;
@@ -64,8 +58,23 @@ static void addTransactionFlow(FinanceManager &manager) {
         return;
     }
 
-    manager.addTransaction(Transaction(id, date, amount, category, description));
-    std::cout << "Transaction added.\n";
+    if (manager.addTransaction(date, amount, category, description)) {
+        std::cout << "Transaction added.\n";
+    } else {
+        std::cout << "Failed to add transaction.\n";
+    }
+}
+
+static void removeTransactionFlow(FinanceManager &manager) {
+    int id = 0;
+    std::cout << "Transaction ID to remove: ";
+    std::cin >> id;
+
+    if (manager.removeTransaction(id)) {
+        std::cout << "Transaction removed.\n";
+    } else {
+        std::cout << "Failed to remove transaction.\n";
+    }
 }
 
 static void printReportsMenu() {
@@ -132,7 +141,13 @@ static void reportsFlow(FinanceManager &manager) {
 int main() {
     std::cout << "SQLite version: " << sqlite3_libversion() << "\n";
 
-    FinanceManager manager;
+    DatabaseManager db;
+    if (!db.init()) {
+        std::cerr << "Failed to initialize database.\n";
+        return 1;
+    }
+
+    FinanceManager manager(db);
 
     while (true) {
         printMenu();
@@ -146,7 +161,7 @@ int main() {
 
         switch (choice) {
             case 1:
-                printCategories(manager);
+                manager.printAllCategories();
                 break;
             case 2:
                 addCategoryFlow(manager);
@@ -155,16 +170,20 @@ int main() {
                 addTransactionFlow(manager);
                 break;
             case 4:
+                manager.printAllTransactions();
+                break;
+            case 5:
+                removeTransactionFlow(manager);
+                break;
+            case 6:
                 reportsFlow(manager);
                 break;
             case 0:
+                db.close();
                 return 0;
             default:
                 std::cout << "Unknown menu option.\n";
                 break;
         }
     }
-
-    return 0;
 }
-
