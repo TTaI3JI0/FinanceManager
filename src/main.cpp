@@ -16,6 +16,7 @@ static void printMenu() {
     std::cout << "5) Remove transaction\n";
     std::cout << "6) Reports\n";
     std::cout << "7) Search transactions\n";
+    std::cout << "8) Edit transaction\n";
     std::cout << "0) Exit\n";
     std::cout << "Choice: ";
 }
@@ -64,6 +65,51 @@ static void addTransactionFlow(FinanceManager &manager) {
         std::cout << "Transaction added.\n";
     } else {
         std::cout << "Failed to add transaction.\n";
+    }
+}
+
+static void editTransactionFlow(FinanceManager &manager) {
+    int id = 0;
+    std::string newDate;
+    std::string amountInput;
+    std::string newCategory;
+    std::string newDescription;
+
+    std::cout << "Transaction ID to edit: ";
+    std::cin >> id;
+
+    std::cout << "New date (YYYY-MM-DD, empty = keep): ";
+    std::getline(std::cin >> std::ws, newDate);
+
+    std::cout << "New amount (empty = keep): ";
+    std::getline(std::cin, amountInput);
+
+    std::cout << "New category (empty = keep): ";
+    std::getline(std::cin, newCategory);
+
+    std::cout << "New description (empty = keep): ";
+    std::getline(std::cin, newDescription);
+
+    bool updateAmount = !amountInput.empty();
+    double newAmount = 0.0;
+    if (updateAmount) {
+        try {
+            newAmount = std::stod(amountInput);
+        } catch (...) {
+            std::cout << "Invalid amount.\n";
+            return;
+        }
+    }
+
+    if (!newCategory.empty() && !manager.categoryExists(newCategory)) {
+        std::cout << "Error: category does not exist.\n";
+        return;
+    }
+
+    if (manager.editTransaction(id, newDate, newAmount, newCategory, newDescription, updateAmount)) {
+        std::cout << "Transaction updated.\n";
+    } else {
+        std::cout << "Failed to update transaction (ID not found or DB error).\n";
     }
 }
 
@@ -286,6 +332,9 @@ int main() {
                 break;
             case 7:
                 searchFlow(manager);
+                break;
+            case 8:
+                editTransactionFlow(manager);
                 break;
             case 0:
                 db.close();

@@ -34,6 +34,32 @@ bool FinanceManager::removeTransaction(int id) {
         {SqlBind::int64Val(id)});
 }
 
+bool FinanceManager::editTransaction(int id,
+                                     const std::string &newDate,
+                                     double newAmount,
+                                     const std::string &newCategoryName,
+                                     const std::string &newDescription,
+                                     bool updateAmount) {
+    if (!db_.queryExists("SELECT 1 FROM transactions WHERE id = ? LIMIT 1;", std::to_string(id))) {
+        return false;
+    }
+
+    return db_.executePrepared(
+        "UPDATE transactions "
+        "SET date = COALESCE(?, date), "
+        "    amount = COALESCE(?, amount), "
+        "    category_id = COALESCE((SELECT id FROM categories WHERE name = ?), category_id), "
+        "    description = COALESCE(?, description) "
+        "WHERE id = ?;",
+        {
+            newDate.empty() ? SqlBind::nullVal() : SqlBind::textVal(newDate),
+            updateAmount ? SqlBind::doubleVal(newAmount) : SqlBind::nullVal(),
+            newCategoryName.empty() ? SqlBind::nullVal() : SqlBind::textVal(newCategoryName),
+            newDescription.empty() ? SqlBind::nullVal() : SqlBind::textVal(newDescription),
+            SqlBind::int64Val(id),
+        });
+}
+
 namespace {
 
 constexpr const char *kTransactionSelectSql =

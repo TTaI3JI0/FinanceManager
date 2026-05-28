@@ -8,7 +8,7 @@ struct sqlite3;
 struct sqlite3_stmt;
 
 struct SqlBind {
-    enum class Type { Text, Int64, Double } type;
+    enum class Type { Text, Int64, Double, Null } type;
     std::string text;
     long long i64{};
     double d{};
@@ -16,6 +16,7 @@ struct SqlBind {
     static SqlBind textVal(const std::string &v) { return {Type::Text, v, 0, 0.0}; }
     static SqlBind int64Val(long long v) { return {Type::Int64, "", v, 0.0}; }
     static SqlBind doubleVal(double v) { return {Type::Double, "", 0, v}; }
+    static SqlBind nullVal() { return {Type::Null, "", 0, 0.0}; }
 };
 
 class DatabaseManager {

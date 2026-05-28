@@ -36,6 +36,8 @@ bool DatabaseManager::bindValue(sqlite3_stmt *stmt, int index, const SqlBind &bi
             return sqlite3_bind_int64(stmt, index, bind.i64) == SQLITE_OK;
         case SqlBind::Type::Double:
             return sqlite3_bind_double(stmt, index, bind.d) == SQLITE_OK;
+        case SqlBind::Type::Null:
+            return sqlite3_bind_null(stmt, index) == SQLITE_OK;
     }
     return false;
 }

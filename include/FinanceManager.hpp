@@ -15,6 +15,12 @@ public:
                         const std::string &categoryName,
                         const std::string &description);
     bool removeTransaction(int id);
+    bool editTransaction(int id,
+                         const std::string &newDate,
+                         double newAmount,
+                         const std::string &newCategoryName,
+                         const std::string &newDescription,
+                         bool updateAmount = true);
     std::vector<Transaction> getAllTransactions();
     void printAllTransactions();
 
