@@ -4,6 +4,7 @@
 #include <string>
 #include "DatabaseManager.hpp"
 #include "FinanceManager.hpp"
+#include "Transaction.hpp"
 #include "sqlite3.h"
 
 static void printMenu() {
@@ -14,6 +15,7 @@ static void printMenu() {
     std::cout << "4) List transactions\n";
     std::cout << "5) Remove transaction\n";
     std::cout << "6) Reports\n";
+    std::cout << "7) Search transactions\n";
     std::cout << "0) Exit\n";
     std::cout << "Choice: ";
 }
@@ -74,6 +76,96 @@ static void removeTransactionFlow(FinanceManager &manager) {
         std::cout << "Transaction removed.\n";
     } else {
         std::cout << "Failed to remove transaction.\n";
+    }
+}
+
+static void printTransactions(const std::vector<Transaction> &transactions, const std::string &title) {
+    if (transactions.empty()) {
+        std::cout << "No transactions found.\n";
+        return;
+    }
+
+    std::cout << std::fixed << std::setprecision(2);
+    std::cout << "\n" << title << " (" << transactions.size() << "):\n";
+    for (const auto &t : transactions) {
+        std::cout << "#" << t.id
+                  << " | " << t.date
+                  << " | " << t.amount
+                  << " | " << t.category
+                  << " | " << t.description
+                  << "\n";
+    }
+}
+
+static void printSearchMenu() {
+    std::cout << "\n--- Search transactions ---\n";
+    std::cout << "1) By description (substring)\n";
+    std::cout << "2) By category\n";
+    std::cout << "3) By date range\n";
+    std::cout << "4) By amount range\n";
+    std::cout << "0) Back\n";
+    std::cout << "Choice: ";
+}
+
+static void searchFlow(FinanceManager &manager) {
+    while (true) {
+        printSearchMenu();
+
+        int choice = -1;
+        if (!(std::cin >> choice)) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            continue;
+        }
+
+        switch (choice) {
+            case 1: {
+                std::string substr;
+                std::cout << "Description substring: ";
+                std::getline(std::cin >> std::ws, substr);
+                printTransactions(
+                    manager.findTransactionsByDescription(substr),
+                    "Search results (description)");
+                break;
+            }
+            case 2: {
+                std::string category;
+                std::cout << "Category name: ";
+                std::getline(std::cin >> std::ws, category);
+                printTransactions(
+                    manager.findTransactionsByCategory(category),
+                    "Search results (category)");
+                break;
+            }
+            case 3: {
+                std::string fromDate, toDate;
+                std::cout << "From date (YYYY-MM-DD): ";
+                std::cin >> fromDate;
+                std::cout << "To date (YYYY-MM-DD): ";
+                std::cin >> toDate;
+                printTransactions(
+                    manager.findTransactionsByDateRange(fromDate, toDate),
+                    "Search results (date range)");
+                break;
+            }
+            case 4: {
+                double minAmount = 0.0;
+                double maxAmount = 0.0;
+                std::cout << "Min amount: ";
+                std::cin >> minAmount;
+                std::cout << "Max amount: ";
+                std::cin >> maxAmount;
+                printTransactions(
+                    manager.findTransactionsByAmountRange(minAmount, maxAmount),
+                    "Search results (amount range)");
+                break;
+            }
+            case 0:
+                return;
+            default:
+                std::cout << "Unknown option.\n";
+                break;
+        }
     }
 }
 
@@ -177,6 +269,9 @@ int main() {
                 break;
             case 6:
                 reportsFlow(manager);
+                break;
+            case 7:
+                searchFlow(manager);
                 break;
             case 0:
                 db.close();

@@ -26,6 +26,15 @@ public:
     std::map<std::string, double> getExpensesByCategory() const;
     double getBalanceForPeriod(const std::string &startDate, const std::string &endDate) const;
 
+    std::vector<Transaction> findTransactionsByDescription(const std::string &substr) const;
+    std::vector<Transaction> findTransactionsByCategory(const std::string &categoryName) const;
+    std::vector<Transaction> findTransactionsByDateRange(const std::string &fromDate,
+                                                         const std::string &toDate) const;
+    std::vector<Transaction> findTransactionsByAmountRange(double minAmount, double maxAmount) const;
+
 private:
+    std::vector<Transaction> queryTransactions(const std::string &sql,
+                                               const std::vector<SqlBind> &binds) const;
+
     DatabaseManager &db_;
 };

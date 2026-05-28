@@ -34,15 +34,22 @@ bool FinanceManager::removeTransaction(int id) {
         {SqlBind::int64Val(id)});
 }
 
-std::vector<Transaction> FinanceManager::getAllTransactions() {
+namespace {
+
+constexpr const char *kTransactionSelectSql =
+    "SELECT t.id, t.date, t.amount, c.name AS category_name, t.description "
+    "FROM transactions t "
+    "JOIN categories c ON t.category_id = c.id ";
+
+} // namespace
+
+std::vector<Transaction> FinanceManager::queryTransactions(const std::string &sql,
+                                                           const std::vector<SqlBind> &binds) const {
     std::vector<Transaction> transactions;
 
     db_.queryPrepared(
-        "SELECT t.id, t.date, t.amount, c.name AS category_name, t.description "
-        "FROM transactions t "
-        "JOIN categories c ON t.category_id = c.id "
-        "ORDER BY t.id;",
-        {},
+        sql,
+        binds,
         [&](sqlite3_stmt *stmt) {
             const int id = static_cast<int>(sqlite3_column_int(stmt, 0));
             const char *date = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1));
@@ -59,6 +66,46 @@ std::vector<Transaction> FinanceManager::getAllTransactions() {
         });
 
     return transactions;
+}
+
+std::vector<Transaction> FinanceManager::getAllTransactions() {
+    return queryTransactions(
+        std::string(kTransactionSelectSql) + "ORDER BY t.id;",
+        {});
+}
+
+std::vector<Transaction> FinanceManager::findTransactionsByDescription(const std::string &substr) const {
+    return queryTransactions(
+        std::string(kTransactionSelectSql) +
+        "WHERE t.description LIKE ? "
+        "ORDER BY t.id;",
+        {SqlBind::textVal("%" + substr + "%")});
+}
+
+std::vector<Transaction> FinanceManager::findTransactionsByCategory(const std::string &categoryName) const {
+    return queryTransactions(
+        std::string(kTransactionSelectSql) +
+        "WHERE c.name = ? "
+        "ORDER BY t.id;",
+        {SqlBind::textVal(categoryName)});
+}
+
+std::vector<Transaction> FinanceManager::findTransactionsByDateRange(const std::string &fromDate,
+                                                                     const std::string &toDate) const {
+    return queryTransactions(
+        std::string(kTransactionSelectSql) +
+        "WHERE t.date BETWEEN ? AND ? "
+        "ORDER BY t.id;",
+        {SqlBind::textVal(fromDate), SqlBind::textVal(toDate)});
+}
+
+std::vector<Transaction> FinanceManager::findTransactionsByAmountRange(double minAmount,
+                                                                       double maxAmount) const {
+    return queryTransactions(
+        std::string(kTransactionSelectSql) +
+        "WHERE t.amount BETWEEN ? AND ? "
+        "ORDER BY t.id;",
+        {SqlBind::doubleVal(minAmount), SqlBind::doubleVal(maxAmount)});
 }
 
 void FinanceManager::printAllTransactions() {
