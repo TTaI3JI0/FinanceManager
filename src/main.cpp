@@ -5,10 +5,11 @@
 #include "DatabaseManager.hpp"
 #include "FinanceManager.hpp"
 #include "Transaction.hpp"
+#include "Utils.hpp"
 #include "sqlite3.h"
 
 static void printMenu() {
-    std::cout << "\n=== Finance Manager ===\n";
+    std::cout << "\n" << Ansi::Bold << Ansi::Magenta << "=== Finance Manager ===" << Ansi::Reset << "\n";
     std::cout << "1) List categories\n";
     std::cout << "2) Add category\n";
     std::cout << "3) Add transaction\n";
@@ -18,7 +19,7 @@ static void printMenu() {
     std::cout << "7) Search transactions\n";
     std::cout << "8) Edit transaction\n";
     std::cout << "0) Exit\n";
-    std::cout << "Choice: ";
+    std::cout << Ansi::Cyan << "Choice: " << Ansi::Reset;
 }
 
 static void addCategoryFlow(FinanceManager &manager) {
@@ -32,61 +33,55 @@ static void addCategoryFlow(FinanceManager &manager) {
     std::cin >> isIncomeInt;
 
     if (manager.addCategory(name, isIncomeInt != 0)) {
-        std::cout << "Category added.\n";
+        printSuccess("Category added.");
     } else {
-        std::cout << "Failed to add category (empty name or already exists).\n";
+        printError("Failed to add category (empty name or already exists).");
     }
 }
 
 static void addTransactionFlow(FinanceManager &manager) {
-    std::string date;
+    const std::string date = readValidDate("Date (YYYY-MM-DD): ");
+
     double amount = 0.0;
-    std::string category;
-    std::string description;
-
-    std::cout << "Date (YYYY-MM-DD): ";
-    std::cin >> date;
-
     std::cout << "Amount (double): ";
     std::cin >> amount;
 
+    std::string category;
     std::cout << "Category (exact name): ";
     std::getline(std::cin >> std::ws, category);
 
+    std::string description;
     std::cout << "Description: ";
     std::getline(std::cin, description);
 
     if (!manager.categoryExists(category)) {
-        std::cout << "Error: category does not exist. Please add it first.\n";
+        printError("Category does not exist. Please add it first.");
         return;
     }
 
     if (manager.addTransaction(date, amount, category, description)) {
-        std::cout << "Transaction added.\n";
+        printSuccess("Transaction added.");
     } else {
-        std::cout << "Failed to add transaction.\n";
+        printError("Failed to add transaction.");
     }
 }
 
 static void editTransactionFlow(FinanceManager &manager) {
     int id = 0;
-    std::string newDate;
-    std::string amountInput;
-    std::string newCategory;
-    std::string newDescription;
-
     std::cout << "Transaction ID to edit: ";
     std::cin >> id;
 
-    std::cout << "New date (YYYY-MM-DD, empty = keep): ";
-    std::getline(std::cin >> std::ws, newDate);
+    const std::string newDate = readOptionalValidDate("New date (YYYY-MM-DD, empty = keep): ");
 
+    std::string amountInput;
     std::cout << "New amount (empty = keep): ";
     std::getline(std::cin, amountInput);
 
+    std::string newCategory;
     std::cout << "New category (empty = keep): ";
     std::getline(std::cin, newCategory);
 
+    std::string newDescription;
     std::cout << "New description (empty = keep): ";
     std::getline(std::cin, newDescription);
 
@@ -96,20 +91,20 @@ static void editTransactionFlow(FinanceManager &manager) {
         try {
             newAmount = std::stod(amountInput);
         } catch (...) {
-            std::cout << "Invalid amount.\n";
+            printError("Invalid amount.");
             return;
         }
     }
 
     if (!newCategory.empty() && !manager.categoryExists(newCategory)) {
-        std::cout << "Error: category does not exist.\n";
+        printError("Category does not exist.");
         return;
     }
 
     if (manager.editTransaction(id, newDate, newAmount, newCategory, newDescription, updateAmount)) {
-        std::cout << "Transaction updated.\n";
+        printSuccess("Transaction updated.");
     } else {
-        std::cout << "Failed to update transaction (ID not found or DB error).\n";
+        printError("Failed to update transaction (ID not found or DB error).");
     }
 }
 
@@ -119,24 +114,25 @@ static void removeTransactionFlow(FinanceManager &manager) {
     std::cin >> id;
 
     if (manager.removeTransaction(id)) {
-        std::cout << "Transaction removed.\n";
+        printSuccess("Transaction removed.");
     } else {
-        std::cout << "Failed to remove transaction.\n";
+        printError("Failed to remove transaction.");
     }
 }
 
 static void printTransactions(const std::vector<Transaction> &transactions, const std::string &title) {
     if (transactions.empty()) {
-        std::cout << "No transactions found.\n";
+        printInfo("No transactions found.");
         return;
     }
 
     std::cout << std::fixed << std::setprecision(2);
-    std::cout << "\n" << title << " (" << transactions.size() << "):\n";
+    std::cout << "\n" << Ansi::Bold << title << Ansi::Reset
+              << " (" << transactions.size() << "):\n";
     for (const auto &t : transactions) {
-        std::cout << "#" << t.id
+        std::cout << Ansi::Blue << "#" << t.id << Ansi::Reset
                   << " | " << t.date
-                  << " | " << t.amount
+                  << " | " << Ansi::Yellow << t.amount << Ansi::Reset
                   << " | " << t.category
                   << " | " << t.description
                   << "\n";
@@ -144,13 +140,13 @@ static void printTransactions(const std::vector<Transaction> &transactions, cons
 }
 
 static void printSearchMenu() {
-    std::cout << "\n--- Search transactions ---\n";
+    std::cout << "\n" << Ansi::Bold << "--- Search transactions ---" << Ansi::Reset << "\n";
     std::cout << "1) By description (substring)\n";
     std::cout << "2) By category\n";
     std::cout << "3) By date range\n";
     std::cout << "4) By amount range\n";
     std::cout << "0) Back\n";
-    std::cout << "Choice: ";
+    std::cout << Ansi::Cyan << "Choice: " << Ansi::Reset;
 }
 
 static void searchFlow(FinanceManager &manager) {
@@ -184,11 +180,14 @@ static void searchFlow(FinanceManager &manager) {
                 break;
             }
             case 3: {
-                std::string fromDate, toDate;
-                std::cout << "From date (YYYY-MM-DD): ";
-                std::cin >> fromDate;
-                std::cout << "To date (YYYY-MM-DD): ";
-                std::cin >> toDate;
+                const std::string fromDate = readValidDate("From date (YYYY-MM-DD): ");
+                const std::string toDate = readValidDate("To date (YYYY-MM-DD): ");
+
+                if (fromDate > toDate) {
+                    printError("From date must be <= to date.");
+                    break;
+                }
+
                 printTransactions(
                     manager.findTransactionsByDateRange(fromDate, toDate),
                     "Search results (date range)");
@@ -201,6 +200,12 @@ static void searchFlow(FinanceManager &manager) {
                 std::cin >> minAmount;
                 std::cout << "Max amount: ";
                 std::cin >> maxAmount;
+
+                if (minAmount > maxAmount) {
+                    printError("Min amount must be <= max amount.");
+                    break;
+                }
+
                 printTransactions(
                     manager.findTransactionsByAmountRange(minAmount, maxAmount),
                     "Search results (amount range)");
@@ -209,20 +214,21 @@ static void searchFlow(FinanceManager &manager) {
             case 0:
                 return;
             default:
-                std::cout << "Unknown option.\n";
+                printError("Unknown option.");
                 break;
         }
     }
 }
 
 static void printReportsMenu() {
-    std::cout << "\n--- Reports ---\n";
+    std::cout << "\n" << Ansi::Bold << "--- Reports ---" << Ansi::Reset << "\n";
     std::cout << "1) Total balance\n";
     std::cout << "2) Expenses by category\n";
     std::cout << "3) Balance for period\n";
-    std::cout << "4) Monthly expenses\n";
+    std::cout << "4) Monthly expenses (list)\n";
+    std::cout << "5) Monthly expense dynamics (chart)\n";
     std::cout << "0) Back\n";
-    std::cout << "Choice: ";
+    std::cout << Ansi::Cyan << "Choice: " << Ansi::Reset;
 }
 
 static void reportsFlow(FinanceManager &manager) {
@@ -240,62 +246,80 @@ static void reportsFlow(FinanceManager &manager) {
             case 1: {
                 const double balance = manager.getTotalBalance();
                 std::cout << std::fixed << std::setprecision(2);
-                std::cout << "Total balance: " << balance << "\n";
+                std::cout << Ansi::Green << "Total balance: " << balance << Ansi::Reset << "\n";
                 break;
             }
             case 2: {
                 auto expenses = manager.getExpensesByCategory();
                 std::cout << std::fixed << std::setprecision(2);
                 if (expenses.empty()) {
-                    std::cout << "No expenses yet.\n";
+                    printInfo("No expenses yet.");
                     break;
                 }
-                std::cout << "Expenses by category:\n";
+                std::cout << Ansi::Bold << "Expenses by category:\n" << Ansi::Reset;
                 for (const auto &kv : expenses) {
                     std::cout << "- " << kv.first << ": " << kv.second << "\n";
                 }
                 break;
             }
             case 3: {
-                std::string startDate, endDate;
-                std::cout << "Start date (YYYY-MM-DD): ";
-                std::cin >> startDate;
-                std::cout << "End date (YYYY-MM-DD): ";
-                std::cin >> endDate;
+                const std::string startDate = readValidDate("Start date (YYYY-MM-DD): ");
+                const std::string endDate = readValidDate("End date (YYYY-MM-DD): ");
+
+                if (startDate > endDate) {
+                    printError("Start date must be <= end date.");
+                    break;
+                }
 
                 const double balance = manager.getBalanceForPeriod(startDate, endDate);
                 std::cout << std::fixed << std::setprecision(2);
-                std::cout << "Balance for period [" << startDate << " .. " << endDate << "]: " << balance << "\n";
+                std::cout << Ansi::Green
+                          << "Balance for period [" << startDate << " .. " << endDate << "]: "
+                          << balance << Ansi::Reset << "\n";
                 break;
             }
             case 4: {
                 auto monthly = manager.getMonthlyExpenses();
                 std::cout << std::fixed << std::setprecision(2);
                 if (monthly.empty()) {
-                    std::cout << "No monthly expenses yet.\n";
+                    printInfo("No monthly expenses yet.");
                     break;
                 }
-                std::cout << "Monthly expenses:\n";
+                std::cout << Ansi::Bold << "Monthly expenses:\n" << Ansi::Reset;
                 for (const auto &kv : monthly) {
                     std::cout << "- " << kv.first << ": " << kv.second << "\n";
                 }
                 break;
             }
+            case 5: {
+                auto monthly = manager.getMonthlyExpenses();
+                if (monthly.empty()) {
+                    printInfo("No monthly expenses yet.");
+                    break;
+                }
+                std::cout << "\n" << Ansi::Bold << Ansi::Magenta
+                          << "Monthly expense dynamics / Динамика расходов по месяцам"
+                          << Ansi::Reset << "\n\n";
+                printHorizontalBarChart(monthly, 40);
+                break;
+            }
             case 0:
                 return;
             default:
-                std::cout << "Unknown option.\n";
+                printError("Unknown option.");
                 break;
         }
     }
 }
 
 int main() {
-    std::cout << "SQLite version: " << sqlite3_libversion() << "\n";
+    enableAnsiSupport();
+
+    printInfo(std::string("SQLite version: ") + sqlite3_libversion());
 
     DatabaseManager db;
     if (!db.init()) {
-        std::cerr << "Failed to initialize database.\n";
+        printError("Failed to initialize database.");
         return 1;
     }
 
@@ -338,9 +362,10 @@ int main() {
                 break;
             case 0:
                 db.close();
+                printInfo("Goodbye.");
                 return 0;
             default:
-                std::cout << "Unknown menu option.\n";
+                printError("Unknown menu option.");
                 break;
         }
     }
